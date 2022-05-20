@@ -41,15 +41,17 @@ from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 from PyQt5.QtCore import Qt
 
+from ui.ui_manual_regime import Ui_Form
 
 import sys
 
 
-class TestForm(QtWidgets.QWidget):
+class TestForm(QtWidgets.QWidget, Ui_Form):
     def __init__(self):
         # Call the inherited classes __init__ method
         super(TestForm, self).__init__()
-        uic.loadUi('manual_regime.ui', self)
+        self.setupUi(self)
+        #uic.loadUi('ui/manual_regime.ui', self)
 
         self.comboBoxPort.addItems(
             [port.portName() for port in QSerialPortInfo().availablePorts()])
