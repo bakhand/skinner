@@ -37,6 +37,10 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.Tmax = 150
         self.mean_int = 60
         
+        #distribution params.I'll keep it here, possible good idea - move it to different object
+        self.p_vec = []
+        self.t_vec = []
+        self.rng = rng = np.random.default_rng()
         
         #spinboxes settings
         self.pDoubleSpinBox.setMaximum(1.0)
@@ -55,47 +59,68 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.tMaxSpinBox.setValue(150)
         
         
+        self.stopTimeSpinBox.setMinimum(1)
+        self.stopTimeSpinBox.setMaximum(180)
+        self.stopTimeSpinBox.setValue(60)
+        
+        self.stopTrialSpinBox.setMinimum(1)
+        self.stopTrialSpinBox.setMaximum(999)
+        self.stopTrialSpinBox.setValue(10)
+        
+        self.stopRewardSpinBox.setMinimum(1)
+        self.stopRewardSpinBox.setMaximum(999)
+        self.stopRewardSpinBox.setValue(100)
+        
+        
         #spinboxes connection
         self.pDoubleSpinBox.valueChanged.connect(self.updateDistrParam)
         self.tSpinBox.valueChanged.connect(self.updateDistrParam)
         self.tMaxSpinBox.valueChanged.connect(self.updateDistrParam)
         
-      
-        
-        
-        
-        
         
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
-        #self.sc.axes.plot([0,1,2,3,4], [10,1,20,3,40])
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.sc)
-        self._plot_ref = self.sc.axes.plot([], [], '-ok')
+        self._freq_ref = self.sc.axes.plot([],[], 'xr')[0]
+        self._plot_ref = self.sc.axes.plot([], [], '-ok')[0]
+        
         self.mplWidget.setLayout(layout)
         
         #riLabel initial value and initial plot
         self.updateDistrParam()
         
-        
-        self.risg = RISequenceGenerator()
-        self.sequence = self.risg.generate()
-        self.riModel = RIModel(self.sequence)
+        self.riModel = RIModel()
         self.listView.setModel(self.riModel)
-        self.generatePushButton.clicked.connect(lambda x: self.riModel.editStatus(_index(3), "got_food"))
+        
+        self.sequence = self.generateSequence()
+        self.generatePushButton.clicked.connect(self.generateSequence)
+        
+    def generateSequence(self):
+        self.sequence = self.rng.choice(self.t_vec, size = self.stopTrialSpinBox.value(), p=self.p_vec)
+        self.riModel.setData(list(zip(["not_recorded"]*len(self.sequence), self.sequence)))
+        times, counts = np.unique(self.sequence, return_counts = True)
+        freq_vec = counts/len(self.sequence)
+        self._freq_ref.set_data(times, freq_vec)
+        self.sc.draw()
     
     def updateDistrParam(self):
+        #move plot update to different place
+        #also update plot for frequences
+        #and do goood x y scaling
         self.p = self.pDoubleSpinBox.value()
         self.T = self.tSpinBox.value()
         self.Tmax = self.tMaxSpinBox.value()
-        self.riLabel.setText(str(self.p))
-        t_vec = np.arange(self.T, self.Tmax, self.T)
-        p_vec = []
-        for i in range(0, len(t_vec)):
-            p_vec.append((1-sum(p_vec))*self.p)
-        #p_vec[-1] += sum(p_vec))
-        #https://www.pythonguis.com/tutorials/plotting-matplotlib/ here I'm trying to do in-replace draw, but still failing
-        self._plot_ref[0].set_data(t_vec, p_vec)
+        self.riLabel.setText(f"{self.T/self.p:.1f}")
+        self.t_vec = np.arange(self.T, self.Tmax, self.T)
+        self.p_vec = []
+        for i in range(0, len(self.t_vec)):
+            self.p_vec.append((1-sum(self.p_vec))*self.p)
+        self.p_vec[-1] += (1 - sum(self.p_vec))
+        self._plot_ref.set_data(self.t_vec, self.p_vec)
+        self.sc.axes.set_xlim(0, self.Tmax+1.0)
+        self.sc.axes.set_ylim(0, self.p + 0.1)
         self.sc.draw()
+      
 
 
 
@@ -110,7 +135,7 @@ class RIModel(QtCore.QAbstractListModel):
     def data(self, index, role):
         if role == QtCore.Qt.DisplayRole:
             status, text = self.intervals[index.row()]
-            return text
+            return str(text)
         if role == QtCore.Qt.DecorationRole:
             status, _ = self.intervals[index.row()]
             return self.iconPool.getIcon(status)
@@ -152,13 +177,9 @@ class IconPool():
         else:
             return self.icons['no_icon']
 
-
-
-class RISequenceGenerator():
-    def calculateMean():
-        pass
-    
-    def generate(self, p=1, T=1, Tmax = 100):
+                
+                
+                
         return list(zip(["not_recorded"]*100, [1]*100))
 
 def main():
