@@ -19,12 +19,7 @@ class MplCanvas(FigureCanvasQTAgg):
         super(MplCanvas, self).__init__(fig)
 
 
-class _index:
-    def __init__(self,r):
-        self.r = r
-            
-    def row(self):
-        return self.r
+
 
 class TestUiRi(QtWidgets.QWidget, Ui_RI):
     def __init__(self, parent=None):
@@ -92,8 +87,10 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.riModel = RIModel()
         self.listView.setModel(self.riModel)
         
-        self.sequence = self.generateSequence()
+        self.generateSequence()
         self.generatePushButton.clicked.connect(self.generateSequence)
+        
+        self.startPushButton.clicked.connect(self.runTimerIterator)
         
     def generateSequence(self):
         self.sequence = self.rng.choice(self.t_vec, size = self.stopTrialSpinBox.value(), p=self.p_vec)
@@ -121,21 +118,69 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.sc.axes.set_ylim(0, self.p + 0.1)
         self.sc.draw()
       
+    def runTimerIterator(self):
+        self.riModel.restart()
+        # self.thread = QtCore.QThread()
+        self.timerIterator = TimerIterator(self.sequence) #sequence кинь
+        # self.timerIterator.moveToThread(self.thread)
+        
+        # self.thread.started.connect(self.timerIterator._start)
+        # self.timerIterator.finished_signal.connect(self.thread.quit)
+        self.timerIterator.finished_signal.connect(self.timerIterator.deleteLater)
+        # self.thread.finished.connect(self.thread.deleteLater)
+        # self.thread.start()
+        # self.thread.exec()
+        self.timerIterator.timer_started_signal.connect(lambda x: self.riModel.intervalStarted(x))
+ 
+        
+        self.timerIterator.timeout_signal.connect(lambda x: self.riModel.intervalEnded(x))
+        
+        
+        
+        self.timerIterator.pause_signal.connect(self.riModel.intervalPaused)
+        self.timerIterator.resume_signal.connect(self.riModel.intervalResumed)
+        
+        
+        
+        self.timerIterator.finished_signal.connect(lambda x: self.riModel.intervalEnded(x))
+        self.startPushButton.setEnabled(False)
+        self.timerIterator.finished_signal.connect( lambda: self.startPushButton.setEnabled(True))
+        self.generatePushButton.setEnabled(False)
+        self.timerIterator.finished_signal.connect( lambda: self.generatePushButton.setEnabled(True))
+        
+        self.timerIterator._start()
+        
+        self.stopPushButton.clicked.connect(self.timerIterator._stop)
+        
+        self.pausePushButton.setCheckable(True)
+        self.pausePushButton.toggled.connect( lambda x: self.timerIterator._pause() if x else self.timerIterator._resume())
+       
+
+        
+        
+        
+        
+        
+        
+        
 
 
 
 class RIModel(QtCore.QAbstractListModel):
+    #need to replace index calls and _index calls
     
     def __init__(self, intervals=None, *args, **kwargs):
         super(RIModel, self).__init__(*args, **kwargs)
         self.intervals = intervals or []
         statuses = ["got_food", "missed_food", "not_recorded", "paused", "recording_now", "recording_got"]
         self.iconPool = IconPool(statuses)
+        self.last_started = -1
+        self.status_before_pause = ""
 
     def data(self, index, role):
         if role == QtCore.Qt.DisplayRole:
             status, text = self.intervals[index.row()]
-            return str(text)
+            return f'{index.row() + 1}. {text} сек'
         if role == QtCore.Qt.DecorationRole:
             status, _ = self.intervals[index.row()]
             return self.iconPool.getIcon(status)
@@ -161,6 +206,43 @@ class RIModel(QtCore.QAbstractListModel):
         _, value = self.intervals[index.row()] 
         self.intervals[index.row()] = (status, value)
         self.layoutChanged.emit()
+        
+    def getStatus(self, index):
+        status, value = self.intervals[index.row()] 
+        return status  
+    
+        
+    def intervalStarted(self, n):
+        self.last_started = n
+        self.editStatus(_index(n), "recording_now")
+        
+    def intervalPaused(self):
+        self.status_before_pause = self.getStatus(_index(self.last_started))
+        self.editStatus(_index(self.last_started), "paused")
+        
+    def intervalResumed(self):
+        self.editStatus(_index(self.last_started), self.status_before_pause)
+        
+    
+    def foodGiven(self):
+        self.editStatus(_index(self.last_started), "recording_got")
+    
+    def intervalEnded(self,n):
+        if self.getStatus(_index(n)) == "recording_now":
+             self.editStatus(_index(n), "missed_food")
+        else:
+            if self.getStatus(_index(n)) == "recording_got":
+                self.editStatus(_index(n), "got_food")
+            
+    def restart(self):
+        self.last_started = -1
+        for i in range(0,len(self.intervals)):
+            self.editStatus(_index(i), "not_recorded")
+        
+
+        
+        
+    
 
     
 class IconPool():
@@ -181,6 +263,89 @@ class IconPool():
                 
                 
         return list(zip(["not_recorded"]*100, [1]*100))
+
+
+class _index:
+    def __init__(self,r):
+        self.r = r
+            
+    def row(self):
+        return self.r
+
+class FalsePassieArduino():
+    def leverOut(self):
+        print("Педаль выехала")
+    def leverIn(self):
+        print("Педаль уехала")
+    def triggerOn(self):
+        print("Auto ON")
+    def triggerOff(self):
+        print("Auto OFF")
+
+     
+        
+class TimerIterator(QtCore.QObject):
+    VEL = 100 #10 times faster
+    
+    
+    finished_signal = QtCore.pyqtSignal(int)
+    timer_started_signal = QtCore.pyqtSignal(int)
+    timeout_signal = QtCore.pyqtSignal(int)
+    pause_signal = QtCore.pyqtSignal()
+    resume_signal = QtCore.pyqtSignal()
+    
+    def __init__(self, time_sequence=[1,2,3]):
+        super(TimerIterator, self).__init__()
+        self.time_sequence = time_sequence
+        self.current_index = 0
+        self.max_index = len(self.time_sequence)-1
+        
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.remaining_time = 0
+        print("Timer iterator created")
+        
+    
+    def _start(self):
+        time = QtCore.QTime.currentTime()
+        self.timer.timeout.connect(self._timeout)
+        self.timer.start(self.time_sequence[self. current_index]*self.VEL) 
+        self.timer_started_signal.emit(0)
+        print(f"Timer iterator started {self.current_index}: {self.time_sequence[self. current_index]*self.VEL} " + time.toString("hh:mm:ss"))
+        
+    def _timeout(self):
+        self.timeout_signal.emit(self.current_index)
+        if self.current_index == self.max_index:
+            self._stop()
+            
+        else:
+            time = QtCore.QTime.currentTime()
+            self.current_index += 1
+            self.timer.start(self.time_sequence[self.current_index]*self.VEL)
+            self.timer_started_signal.emit(self.current_index)
+            print(f"Timer iterator went to {self.current_index}: {self.time_sequence[self. current_index]*self.VEL}" + time.toString("hh:mm:ss"))
+        
+    
+    def _pause(self):
+        self.remaining_time = self.timer.remainingTime()
+        self.pause_signal.emit()
+        self.timer.stop()
+        print(self.remaining_time)
+    
+    def _resume(self):
+        self.timer.start(self.remaining_time)
+        self.resume_signal.emit()
+        self.remaining_time = 0
+    
+    def _stop(self):
+        print("THe END")
+        self.timer.stop()
+        self.finished_signal.emit(self.current_index)      
+    
+    
+    
+    
+
 
 def main():
     app = QApplication(sys.argv)
