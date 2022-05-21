@@ -21,9 +21,10 @@ class Ui_Form(object):
         self.layoutWidget = QWidget(Form)
         self.layoutWidget.setObjectName(u"layoutWidget")
         self.layoutWidget.setGeometry(QRect(10, 20, 724, 461))
-        self.verticalLayout_2 = QVBoxLayout(self.layoutWidget)
+        self.verticalLayout_2 = QVBoxLayout(self)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.verticalLayout_2.setContentsMargins(0, 0, 0, 0)
+        
         self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.horizontalLayout = QHBoxLayout()

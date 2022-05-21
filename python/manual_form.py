@@ -60,7 +60,7 @@ class TestForm(QtWidgets.QWidget, Ui_Form):
         self.pushButtonConnect.toggled.connect(self.connectArduino)
 
         self.port = QSerialPort()
-        self.show()
+        #self.show()
 
         self.pushButtonMotorOn.clicked.connect(lambda: self.sendToPort("<11>"))
         self.pushButtonMotorOff.clicked.connect(
@@ -290,9 +290,9 @@ class StateLogger():
     
 
 # Create an instance of QtWidgets.QApplication
-app = QtWidgets.QApplication(sys.argv)
-window = TestForm()  # Create an instance of our class
+# app = QtWidgets.QApplication(sys.argv)
+# window = TestForm()  # Create an instance of our class
 
-app.exec_() 
+# app.exec_() 
  # Start the application
 # window.port.close()
