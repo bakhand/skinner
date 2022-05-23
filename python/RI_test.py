@@ -22,9 +22,10 @@ class MplCanvas(FigureCanvasQTAgg):
 
 
 class TestUiRi(QtWidgets.QWidget, Ui_RI):
-    def __init__(self, parent=None):
-        super(TestUiRi, self).__init__(parent)
+    def __init__(self):
+        super(TestUiRi, self).__init__()
         self.setupUi(self)
+        self.timerIterator = TimerIterator()
         
         #here will be implemented data loadiong 
         self.p = 0.1
@@ -90,6 +91,7 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.generateSequence()
         self.generatePushButton.clicked.connect(self.generateSequence)
         
+        
         self.startPushButton.clicked.connect(self.runTimerIterator)
         
     def generateSequence(self):
@@ -119,6 +121,7 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.sc.draw()
       
     def runTimerIterator(self):
+        self.parentWidget().parentWidget().catch_start()
         self.riModel.restart()
         # self.thread = QtCore.QThread()
         self.timerIterator = TimerIterator(self.sequence) #sequence кинь
@@ -131,7 +134,7 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         # self.thread.start()
         # self.thread.exec()
         self.timerIterator.timer_started_signal.connect(lambda x: self.riModel.intervalStarted(x))
- 
+        
         
         self.timerIterator.timeout_signal.connect(lambda x: self.riModel.intervalEnded(x))
         
@@ -139,6 +142,9 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         
         self.timerIterator.pause_signal.connect(self.riModel.intervalPaused)
         self.timerIterator.resume_signal.connect(self.riModel.intervalResumed)
+        
+        
+        
         
         
         
@@ -155,7 +161,14 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.pausePushButton.setCheckable(True)
         self.pausePushButton.toggled.connect( lambda x: self.timerIterator._pause() if x else self.timerIterator._resume())
        
+        self.timerIterator.timer_started_signal.connect(lambda x: self.parentWidget().parentWidget().catch_timer(x))
+        
+        self.timerIterator.pause_signal.connect(self.parentWidget().parentWidget().catch_pause)
+        self.timerIterator.resume_signal.connect(self.parentWidget().parentWidget().catch_resume)
+        self.stopPushButton.clicked.connect(self.parentWidget().parentWidget().catch_stop)
+        
 
+       
         
         
         
@@ -259,10 +272,7 @@ class IconPool():
         else:
             return self.icons['no_icon']
 
-                
-                
-                
-        return list(zip(["not_recorded"]*100, [1]*100))
+       
 
 
 class _index:
@@ -285,7 +295,7 @@ class FalsePassieArduino():
      
         
 class TimerIterator(QtCore.QObject):
-    VEL = 100 #10 times faster
+    VEL = 1000 #10 times faster
     
     
     finished_signal = QtCore.pyqtSignal(int)

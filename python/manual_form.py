@@ -173,6 +173,7 @@ class TestForm(QtWidgets.QWidget, Ui_Form):
             if (message[1] == "Lever") and ((message[2] == "pressed")):
                 self.lcdNumberLever.display(self.lcdNumberLever.intValue() + 1)
                 self.updateRow("Lever", message[4], (0, 0, 0))
+                self.parentWidget().parentWidget().catch_lever_press()
             if (message[1] == "GIVING"):
                 self.lcdNumberFood.display(self.lcdNumberFood.intValue() + 1)
                 self.updateRow("Feeder", message[3], (0, 0, 150))
