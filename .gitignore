@@ -1,2 +1,4 @@
-
+*.spec
 *.pyc
+.\python\build\*
+.\python\dist\*
