@@ -8,7 +8,7 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from ui.ui_RI import Ui_RI
+from ui.ui_RR import Ui_RR
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -21,11 +21,11 @@ class MplCanvas(FigureCanvasQTAgg):
 
 
 
-class TestUiRi(QtWidgets.QWidget, Ui_RI):
+class TestUiRR(QtWidgets.QWidget, Ui_RR):
     def __init__(self):
-        super(TestUiRi, self).__init__()
+        super(TestUiRR, self).__init__()
         self.setupUi(self)
-        self.timerIterator = TimerIterator()
+        self.numberIterator = NumberIterator()
         
         #here will be implemented data loadiong 
         self.p = 0.1
@@ -35,7 +35,7 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         
         #distribution params.I'll keep it here, possible good idea - move it to different object
         self.p_vec = []
-        self.t_vec = []
+        self.n_vec = []
         self.rng = rng = np.random.default_rng()
         
         #spinboxes settings
@@ -45,14 +45,11 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.pDoubleSpinBox.setSingleStep(0.01)
         self.pDoubleSpinBox.setValue(self.p)
         
+    
         
-        self.tSpinBox.setMinimum(1)
-        self.tSpinBox.setMaximum(999)
-        self.tSpinBox.setValue(self.T)
-        
-        self.tMaxSpinBox.setMinimum(1)
-        self.tMaxSpinBox.setMaximum(3600)
-        self.tMaxSpinBox.setValue(150)
+        self.nMaxSpinBox.setMinimum(1)
+        self.nMaxSpinBox.setMaximum(3600)
+        self.nMaxSpinBox.setValue(150)
         
         
         self.stopTimeSpinBox.setMinimum(1)
@@ -63,15 +60,12 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.stopTrialSpinBox.setMaximum(999)
         self.stopTrialSpinBox.setValue(10)
         
-        self.stopRewardSpinBox.setMinimum(1)
-        self.stopRewardSpinBox.setMaximum(999)
-        self.stopRewardSpinBox.setValue(100)
+
         
         
         #spinboxes connection
         self.pDoubleSpinBox.valueChanged.connect(self.updateDistrParam)
-        self.tSpinBox.valueChanged.connect(self.updateDistrParam)
-        self.tMaxSpinBox.valueChanged.connect(self.updateDistrParam)
+        self.nMaxSpinBox.valueChanged.connect(self.updateDistrParam)
         
         
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
@@ -92,14 +86,14 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         self.generatePushButton.clicked.connect(self.generateSequence)
         
         
-        self.startPushButton.clicked.connect(self.runTimerIterator)
+        self.startPushButton.clicked.connect(self.runNumberIterator)
         
     def generateSequence(self):
-        self.sequence = self.rng.choice(self.t_vec, size = self.stopTrialSpinBox.value(), p=self.p_vec)
+        self.sequence = self.rng.choice(self.n_vec, size = self.stopTrialSpinBox.value(), p=self.p_vec)
         self.riModel.setData(list(zip(["not_recorded"]*len(self.sequence), self.sequence)))
-        times, counts = np.unique(self.sequence, return_counts = True)
+        ns, counts = np.unique(self.sequence, return_counts = True)
         freq_vec = counts/len(self.sequence)
-        self._freq_ref.set_data(times, freq_vec)
+        self._freq_ref.set_data(ns, freq_vec)
         self.sc.draw()
     
     def updateDistrParam(self):
@@ -107,67 +101,66 @@ class TestUiRi(QtWidgets.QWidget, Ui_RI):
         #also update plot for frequences
         #and do goood x y scaling
         self.p = self.pDoubleSpinBox.value()
-        self.T = self.tSpinBox.value()
-        self.Tmax = self.tMaxSpinBox.value()
+        self.Nmax = self.nMaxSpinBox.value()
         self.riLabel.setText(f"{self.T/self.p:.1f}")
-        self.t_vec = np.arange(self.T, self.Tmax, self.T)
+        self.n_vec = list(range(1, self.Nmax+1))
         self.p_vec = []
-        for i in range(0, len(self.t_vec)):
+        for i in range(0, len(self.n_vec)):
             self.p_vec.append((1-sum(self.p_vec))*self.p)
         self.p_vec[-1] += (1 - sum(self.p_vec))
-        self._plot_ref.set_data(self.t_vec, self.p_vec)
+        self._plot_ref.set_data(self.n_vec, self.p_vec)
         self.sc.axes.set_xlim(0, self.Tmax+1.0)
         self.sc.axes.set_ylim(0, self.p + 0.1)
         self.sc.draw()
       
-    def runTimerIterator(self):
-        self.parentWidget().parentWidget().parentWidget().parentWidget().catch_start()
+    def runNumberIterator(self):
+        
         self.riModel.restart()
-        # self.thread = QtCore.QThread()
-        self.timerIterator = TimerIterator(self.sequence) #sequence кинь
-        # self.timerIterator.moveToThread(self.thread)
         
-        # self.thread.started.connect(self.timerIterator._start)
-        # self.timerIterator.finished_signal.connect(self.thread.quit)
-        self.timerIterator.finished_signal.connect(self.timerIterator.deleteLater)
-        # self.thread.finished.connect(self.thread.deleteLater)
-        # self.thread.start()
-        # self.thread.exec()
-        self.timerIterator.timer_started_signal.connect(lambda x: self.riModel.intervalStarted(x))
+                
+        self.numberIterator = NumberIterator(self.sequence) 
         
-        
-        self.timerIterator.timeout_signal.connect(lambda x: self.riModel.intervalEnded(x))
+       
         
         
         
-        self.timerIterator.pause_signal.connect(self.riModel.intervalPaused)
-        self.timerIterator.resume_signal.connect(self.riModel.intervalResumed)
+        self.numberIterator.countdown_started_signal.connect(lambda x: self.riModel.intervalStarted(x))
+        
+        
+        self.numberIterator.countdown_ended_signal.connect(lambda x: self.riModel.intervalEnded(x))
+        self.numberIterator.countdown_ended_signal.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_countdown_ended)
+        
+        
+        self.numberIterator.pause_signal.connect(self.riModel.intervalPaused)
+        self.numberIterator.resume_signal.connect(self.riModel.intervalResumed)
         
         
         
         
         
         
-        self.timerIterator.finished_signal.connect(lambda x: self.riModel.intervalEnded(x))
+        self.numberIterator.finished_signal.connect(lambda x: self.riModel.intervalEnded(x))
+        self.numberIterator.finished_signal.connect(self.numberIterator.deleteLater)
         self.startPushButton.setEnabled(False)
-        self.timerIterator.finished_signal.connect( lambda: self.startPushButton.setEnabled(True))
+        self.numberIterator.finished_signal.connect( lambda: self.startPushButton.setEnabled(True))
         self.generatePushButton.setEnabled(False)
-        self.timerIterator.finished_signal.connect( lambda: self.generatePushButton.setEnabled(True))
+        self.numberIterator.finished_signal.connect( lambda: self.generatePushButton.setEnabled(True))
         
-        self.timerIterator._start()
+        self.numberIterator._start()
         
-        self.stopPushButton.clicked.connect(self.timerIterator._stop)
+        self.stopPushButton.clicked.connect(self.numberIterator._stop)
         
         self.pausePushButton.setCheckable(True)
-        self.pausePushButton.toggled.connect( lambda x: self.timerIterator._pause() if x else self.timerIterator._resume())
+        self.pausePushButton.toggled.connect( lambda x: self.numberIterator._pause() if x else self.numberIterator._resume())
        
-        self.timerIterator.timer_started_signal.connect(lambda x: self.parentWidget().parentWidget().parentWidget().parentWidget().catch_timer(x))
+        self.numberIterator.countdown_started_signal.connect(lambda x: self.parentWidget().parentWidget().parentWidget().parentWidget().catch_timer(x))
         
-        self.timerIterator.pause_signal.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_pause)
-        self.timerIterator.resume_signal.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_resume)
+        self.parentWidget().parentWidget().parentWidget().parentWidget().catch_start()
+        self.numberIterator.pause_signal.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_pause)
+        self.numberIterator.resume_signal.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_resume)
         self.stopPushButton.clicked.connect(self.parentWidget().parentWidget().parentWidget().parentWidget().catch_stop)
         
-
+        self.numberIterator.countdown_shifted_signal.connect(lambda x: self.riModel.countdownShifted(x))
        
         
         
@@ -185,7 +178,7 @@ class RIModel(QtCore.QAbstractListModel):
     def __init__(self, intervals=None, *args, **kwargs):
         super(RIModel, self).__init__(*args, **kwargs)
         self.intervals = intervals or []
-        statuses = ["got_food", "missed_food", "not_recorded", "paused", "recording_now", "recording_got"]
+        statuses = ["got_food", "not_recorded", "paused", "recording_now"]
         self.iconPool = IconPool(statuses)
         self.last_started = -1
         self.status_before_pause = ""
@@ -193,7 +186,7 @@ class RIModel(QtCore.QAbstractListModel):
     def data(self, index, role):
         if role == QtCore.Qt.DisplayRole:
             status, text = self.intervals[index.row()]
-            return f'{index.row() + 1}. {text} сек'
+            return f'{index.row() + 1}. {text} раз'
         if role == QtCore.Qt.DecorationRole:
             status, _ = self.intervals[index.row()]
             return self.iconPool.getIcon(status)
@@ -237,15 +230,11 @@ class RIModel(QtCore.QAbstractListModel):
         self.editStatus(_index(self.last_started), self.status_before_pause)
         
     
-    def foodGiven(self):
-        self.editStatus(_index(self.last_started), "recording_got")
-    
     def intervalEnded(self,n):
-        if self.getStatus(_index(n)) == "recording_now":
-             self.editStatus(_index(n), "missed_food")
-        else:
-            if self.getStatus(_index(n)) == "recording_got":
-                self.editStatus(_index(n), "got_food")
+        self.editStatus(_index(n), "got_food")
+        
+    def countdownShifted(self, n):
+        pass
             
     def restart(self):
         self.last_started = -1
@@ -281,76 +270,66 @@ class _index:
             
     def row(self):
         return self.r
-
-class FalsePassieArduino():
-    def leverOut(self):
-        print("Педаль выехала")
-    def leverIn(self):
-        print("Педаль уехала")
-    def triggerOn(self):
-        print("Auto ON")
-    def triggerOff(self):
-        print("Auto OFF")
-
      
         
-class TimerIterator(QtCore.QObject):
-    VEL = 1000 #10 times faster
+class NumberIterator(QtCore.QObject):
     
     
     finished_signal = QtCore.pyqtSignal(int)
-    timer_started_signal = QtCore.pyqtSignal(int)
-    timeout_signal = QtCore.pyqtSignal(int)
+    countdown_started_signal = QtCore.pyqtSignal(int)
+    countdown_ended_signal = QtCore.pyqtSignal(int)
+    countdown_shifted_signal = QtCore.pyqtSignal(int)
     pause_signal = QtCore.pyqtSignal()
     resume_signal = QtCore.pyqtSignal()
     
-    def __init__(self, time_sequence=[1,2,3]):
-        super(TimerIterator, self).__init__()
-        self.time_sequence = time_sequence
-        self.current_index = 0
-        self.max_index = len(self.time_sequence)-1
+    def __init__(self, counter_sequence=[1,2,3]):
+        super(NumberIterator, self).__init__()
+        self.counter_sequence = counter_sequence
+        self.index = 0
+        self.max_index = len(self.counter_sequence)-1
         
-        self.timer = QtCore.QTimer()
-        self.timer.setSingleShot(True)
-        self.remaining_time = 0
-        print("Timer iterator created")
+        self.counter = self.counter_sequence[self.index]
+        self.active = False
+        self.pause = False
+        print("Counter iterator created")
         
     
     def _start(self):
-        time = QtCore.QTime.currentTime()
-        self.timer.timeout.connect(self._timeout)
-        self.timer.start(self.time_sequence[self. current_index]*self.VEL) 
-        self.timer_started_signal.emit(0)
-        print(f"Timer iterator started {self.current_index}: {self.time_sequence[self. current_index]*self.VEL} " + time.toString("hh:mm:ss"))
-        
-    def _timeout(self):
-        self.timeout_signal.emit(self.current_index)
-        if self.current_index == self.max_index:
-            self._stop()
-            
-        else:
-            time = QtCore.QTime.currentTime()
-            self.current_index += 1
-            self.timer.start(self.time_sequence[self.current_index]*self.VEL)
-            self.timer_started_signal.emit(self.current_index)
-            print(f"Timer iterator went to {self.current_index}: {self.time_sequence[self. current_index]*self.VEL}" + time.toString("hh:mm:ss"))
+        self.countdown_started_signal.emit(0)
+        self.active = True
+        print(f"Counter iterator started {self.index}: {self.counter_sequence[self.index]}")
         
     
     def _pause(self):
-        self.remaining_time = self.timer.remainingTime()
+        self.pause = True
         self.pause_signal.emit()
-        self.timer.stop()
-        print(self.remaining_time)
+        print("Пауза началась")
     
     def _resume(self):
-        self.timer.start(self.remaining_time)
+        self.pause = False
         self.resume_signal.emit()
-        self.remaining_time = 0
+        print("Пауза закончилась")
     
     def _stop(self):
         print("THe END")
-        self.timer.stop()
-        self.finished_signal.emit(self.current_index)      
+        self.active = False
+        self.finished_signal.emit(self.index)
+        
+    def _lever_hook(self):
+        if self.active and not self.pause:
+            self.counter -= 1
+            self.countdown_shifted_signal.emit(self.counter)
+            print(self.counter)
+            if self.counter == 0:
+                self.countdown_ended_signal.emit(self.index)
+                if self.index == self.max_index:
+                    self._stop()
+                else:
+                    self.index += 1
+                    self.counter = self.counter_sequence[self.index]
+                    self.countdown_started_signal.emit(self.index)
+                    
+        
     
     
     
@@ -359,7 +338,7 @@ class TimerIterator(QtCore.QObject):
 
 def main():
     app = QApplication(sys.argv)
-    form = TestUiRi()
+    form = TestUiRR()
     form.show()
     app.exec_()
 

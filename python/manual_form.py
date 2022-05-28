@@ -158,6 +158,7 @@ class TestForm(QtWidgets.QWidget, Ui_Form):
             # self.textBrowserLog.moveCursor(QtGui.QTextCursor.End)
 
     def sendToPort(self, text):
+        print("sending " + text )
         self.port.write(text.encode())
 
     def processMessage(self):

@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QTabWidget
 import sys
 import matplotlib
 import numpy as np
@@ -9,6 +9,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 from RI_test import TestUiRi
+from RR_test import TestUiRR
 from manual_form import TestForm
 
 
@@ -21,16 +22,28 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.trigger = False
 
-        self.setWindowTitle("Manual + Auto + RI")
+        self.setWindowTitle("Manual + Auto + RI + RR")
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout()
         self.crt = TestForm()
         self.ri = TestUiRi()
+        self.rr = TestUiRR()
         
         layout.addWidget(self.crt)
-        layout.addWidget(self.ri)
+        
+        self.tab = QTabWidget()
+        
+        self.tab.addTab(self.ri, "RI")
+        self.tab.addTab(self.rr, "RR")
+        
+        
+        layout.addWidget(self.tab)
+        
+        
         widget.setLayout(layout)
         # Set the central widget of the Window.
+             
+        
         self.setCentralWidget(widget)
         
     def catch_timer(self, x):
@@ -56,11 +69,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.crt.sendToPort("<01>")
         
     def catch_lever_press(self):
+        try:
+           self.rr.numberIterator._lever_hook()
+        except:
+            print("Number itrerator ne och")
+            
+            
         if self.trigger:
            print("Trigger спущен")
            self.ri.riModel.foodGiven()
            self.crt.sendToPort("<12>")
         self.trigger = False
+        
+    def catch_countdown_ended(self):
+           print("Нажатия отработаны!")
+           self.crt.sendToPort("<12>")
+        
         
         
         
